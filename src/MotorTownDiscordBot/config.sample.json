@@ -1,0 +1,37 @@
+{
+    "path": "C:\\SteamLibrary\\steamapps\\common\\Motor Town Behind The Wheel - Dedicated Server",
+    "discord_token": "token",
+    "web_api": {
+        "port": 8080,
+        "password": "secret"
+    },
+    "message_settings": {
+        "chat": {
+            "channel_id": 100000000000000000,
+            "text_template": "**{{player}}:** {{message}}",
+            "embed_settings": null
+        },
+        "login": {
+            "channel_id": 100000000000000000,
+            "text_template": null,
+            "embed_settings": {
+                "title_template": "🟢 {{player}} Logged In",
+                "color": "#00ff00"
+            }
+        },
+        "logout": {
+            "channel_id": 100000000000000000,
+            "embed_settings": {
+                "title_template": "🔴 {{player}} Logged Out",
+                "color": "#ff0000"
+            }
+        },
+        "ban": {
+            "channel_id": 100000000000000000,
+            "embed_settings": {
+                "title_template": "🚫 {{player}} Banned By {{admin}}",
+                "color": "#ff0000"
+            }
+        }
+    }
+}
