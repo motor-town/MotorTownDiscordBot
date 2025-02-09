@@ -49,8 +49,16 @@ public class Program
             var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
             while (await timer.WaitForNextTickAsync())
             {
-                int playerCount = await _webAPI.GetPlayerCount();
-                await _client.SetActivityAsync(new Game("with " + playerCount + " other players"));
+                try
+                {
+                    int playerCount = await _webAPI.GetPlayerCount();
+                    await _client.SetActivityAsync(new Game("with " + playerCount + " other players"));
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to update presence");
+                    Console.WriteLine(e);
+                }
             }
         }
     }
@@ -60,10 +68,17 @@ public class Program
         DateTime now = DateTime.Now;
         await foreach (var line in ReadLinesAsync())
         {
-            var gameEvent = ParseLog(line);
-            if (gameEvent != null && gameEvent.TimeStamp >= now)
+            try
             {
+                var gameEvent = ParseLog(line);
+                if (gameEvent is null) continue;
+                if (gameEvent.TimeStamp < now) continue;
                 await SendEvent(gameEvent).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to handle log: {line}");
+                Console.WriteLine(e);
             }
         }
 
@@ -89,16 +104,15 @@ public class Program
 
     private static async Task SendEvent(GameEvent gameEvent)
     {
+
         var messageParams = GetMessageParams(gameEvent);
         if (messageParams == null) return;
 
         var channel = await _client.GetChannelAsync(messageParams.ChannelId);
-        if (channel is IMessageChannel textChannel)
-        {
-            await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
-        }
+        if (channel is not IMessageChannel textChannel) return;
 
-        return;
+        await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
+
     }
 
     private static MessageParams? GetMessageParams(GameEvent gameEvent)
@@ -204,21 +218,32 @@ public class Program
         var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
         while (await timer.WaitForNextTickAsync())
         {
-            if (_file is null)
+            if (_file is null) continue;
+
+            FileStream? stream = null;
+            StreamReader? reader = null;
+
+            try
             {
+                stream = _file.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                reader = new StreamReader(stream);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
                 continue;
             }
 
-            Stream stream = _file.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            using (StreamReader reader = new StreamReader(stream))
+            if (reader is null) continue;
+
+            using (stream)
+            using (reader)
             {
                 //if the file size has not changed, idle
-
                 if (reader.BaseStream.Length == _lastMaxOffset)
                     continue;
 
                 //seek to the last max offset
-
                 reader.BaseStream.Seek(_lastMaxOffset, SeekOrigin.Begin);
 
                 //read out of the file until the EOF
@@ -229,7 +254,6 @@ public class Program
                 }
 
                 //update the last max offset
-
                 _lastMaxOffset = reader.BaseStream.Position;
             }
         }
