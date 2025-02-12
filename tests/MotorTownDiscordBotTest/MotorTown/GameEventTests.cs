@@ -1,14 +1,16 @@
-﻿namespace Tests
+﻿using MotorTownDiscordBot.MotorTown;
+
+namespace MotorTownDiscordBotTest.MotorTown
 {
-    public class ProgramTests
+    public class GameEventTests
     {
         [Fact()]
         public void ParseChatLogTest()
         {
-            var chatMessage = (ChatMessage?)Program.ParseLog("[2025.02.06-19.12.49] [CHAT] McRay: biraz garip geliyor\n");
+            var chatMessage = (ChatMessageEvent?)GameEvent.ParseLog("[2025.02.06-19.12.49] [CHAT] McRay: biraz garip geliyor\n");
 
             Assert.NotNull(chatMessage);
-            Assert.IsType<ChatMessage>(chatMessage);
+            Assert.IsType<ChatMessageEvent>(chatMessage);
             Assert.Equal(new DateTime(2025, 2, 6, 19, 12, 49), chatMessage.TimeStamp);
             Assert.Equal("McRay", chatMessage.Player);
             Assert.Equal("biraz garip geliyor", chatMessage.Message);
@@ -17,7 +19,7 @@
         [Fact()]
         public void ParseLoginLogTest()
         {
-            var sessionEvent = (SessionEvent?)Program.ParseLog("[2025.02.06-17.12.35] Player Login: McRay (76561197997411952)");
+            var sessionEvent = (SessionEvent?)GameEvent.ParseLog("[2025.02.06-17.12.35] Player Login: McRay (76561197997411952)");
 
             Assert.NotNull(sessionEvent);
             Assert.IsType<SessionEvent>(sessionEvent);
@@ -29,7 +31,7 @@
         [Fact()]
         public void ParseLogoutLogTest()
         {
-            var sessionEvent = (SessionEvent?)Program.ParseLog("[2025.02.06-22.13.57] Player Logout: McRay");
+            var sessionEvent = (SessionEvent?)GameEvent.ParseLog("[2025.02.06-22.13.57] Player Logout: McRay");
 
             Assert.NotNull(sessionEvent);
             Assert.IsType<SessionEvent>(sessionEvent);
@@ -41,7 +43,7 @@
         [Fact()]
         public void ParseBanLogTest()
         {
-            var banEvent = (BanEvent?)Program.ParseLog("[2025.02.06-22.13.57] [ADMIN] Arend BAN McRay");
+            var banEvent = (BanEvent?)GameEvent.ParseLog("[2025.02.06-22.13.57] [ADMIN] Arend BAN McRay");
 
             Assert.NotNull(banEvent);
             Assert.IsType<BanEvent>(banEvent);
@@ -53,7 +55,7 @@
         [Fact()]
         public void ParseSrtingFormatTest()
         {
-            ChatMessage chatMessage = new ChatMessage(DateTime.Now, "Eric", "Hello World!");
+            ChatMessageEvent chatMessage = new ChatMessageEvent("", DateTime.Now, "Eric", "Hello World!");
             string template = "{{player}} said '{{message}}'";
             string value = chatMessage.FormatTemplate(template);
 

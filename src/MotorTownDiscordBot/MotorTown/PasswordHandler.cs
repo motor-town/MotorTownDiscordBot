@@ -1,7 +1,7 @@
 ﻿
 using System.Web;
 
-namespace MotorTown
+namespace MotorTownDiscordBot.MotorTown
 {
     internal class PasswordHandler : DelegatingHandler
     {

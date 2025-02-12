@@ -44,41 +44,14 @@ public class MessagesConfig
     public MessageConfig? BanMessageConfig { get; set; }
 }
 
-public class WebApiConfig
-{
-    [JsonPropertyName("port")]
-    public int Port { get; set; }
-
-    [JsonPropertyName("password")]
-    public string? Password { get; set; }
-}
-
-public class AConfigurationClass
+public class AppConfig
 {
     [JsonPropertyName("path")]
-    public string? _path { get; set; }
+    public string Path { get; set; }
 
     [JsonPropertyName("discord_token")]
-    public required string Token { get; set; }
+    public string Token { get; set; }
 
     [JsonPropertyName("message_settings")]
     public MessagesConfig? MessagesConfig { get; set; }
-
-
-    [JsonPropertyName("web_api")]
-    public WebApiConfig? WebApiConfig { get; set; }
-
-    public string GetPath()
-    {
-        string logPath = ".\\MotorTown\\Saved\\ServerLog";
-
-        if (_path is null)
-        {
-            return Path.GetFullPath(logPath);
-        }
-        else
-        {
-            return Path.Combine(_path, logPath);
-        }
-    }
 }

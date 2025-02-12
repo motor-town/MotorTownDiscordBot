@@ -1,57 +1,57 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using Discord;
 using Discord.WebSocket;
-using MotorTown;
-using Scriban;
+using MotorTownDiscordBot.MotorTown;
 
 public class Program
 {
     private static DiscordSocketClient _client = new DiscordSocketClient();
-    private static FileInfo? _file;
-    private static long _lastMaxOffset = 0;
-    private static AConfigurationClass _config = JsonSerializer.Deserialize<AConfigurationClass>(File.ReadAllText("config.json"))!;
-    private static WebAPI? _webAPI;
+    private static AppConfig _config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText("config.json"))!;
+    private static MotorTown _motorTown = new MotorTown(_config.Path);
 
     public static async Task Main(string[] args)
     {
         try
         {
-
-            if (_config.WebApiConfig != null)
-            {
-                _webAPI = new WebAPI(_config.WebApiConfig.Port, _config.WebApiConfig.Password);
-            }
-
             _client.Log += Log;
-            WatchDirectory();
+            _client.Ready += Ready;
+
             await _client.LoginAsync(TokenType.Bot, _config.Token);
             await _client.StartAsync();
-            UpdatePresence();
-            await PushDiscord();
-            return;
+            await Run();
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
             Console.WriteLine("Press any key to exit");
             Console.ReadLine();
-            return;
         }
 
     }
 
+    private static async Task Run()
+    {
+
+        UpdatePresence();
+        await foreach (var gameEvent in _motorTown.ReadAsync())
+        {
+            SendEvent(gameEvent);
+        };
+    }
+
+
     private static async void UpdatePresence()
     {
 
-        if (_webAPI != null)
+        if (_motorTown.WebAPI != null)
         {
-            var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
             while (await timer.WaitForNextTickAsync())
             {
                 try
                 {
-                    int playerCount = await _webAPI.GetPlayerCount();
+                    int playerCount = await _motorTown.WebAPI.GetPlayerCount();
                     await _client.SetActivityAsync(new Game("with " + playerCount + " other players"));
                 }
                 catch (Exception e)
@@ -63,56 +63,23 @@ public class Program
         }
     }
 
-    private static async Task PushDiscord()
+    private static async void SendEvent(GameEvent gameEvent)
     {
-        DateTime now = DateTime.Now;
-        await foreach (var line in ReadLinesAsync())
+        try
         {
-            try
-            {
-                var gameEvent = ParseLog(line);
-                if (gameEvent is null) continue;
-                if (gameEvent.TimeStamp < now) continue;
-                await SendEvent(gameEvent).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Failed to handle log: {line}");
-                Console.WriteLine(e);
-            }
+            var messageParams = GetMessageParams(gameEvent);
+            Debug.WriteLine(messageParams);
+            if (messageParams == null) return;
+
+            var channel = await _client.GetChannelAsync(messageParams.ChannelId);
+            if (channel is not IMessageChannel textChannel) return;
+
+            await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
         }
-
-        return;
-    }
-
-    private static void WatchDirectory()
-    {
-        string logFolderPath = _config.GetPath();
-        var file = getLastLogFile(logFolderPath);
-        if (file is not null)
+        catch (Exception e)
         {
-            ReadFile(file.FullName);
+            Console.WriteLine($"Failed to send event: {e.Message}");
         }
-
-        var watcher = new FileSystemWatcher(logFolderPath);
-        watcher.Created += OnCreated;
-
-        watcher.Filter = "*.log";
-        watcher.EnableRaisingEvents = true;
-        return;
-    }
-
-    private static async Task SendEvent(GameEvent gameEvent)
-    {
-
-        var messageParams = GetMessageParams(gameEvent);
-        if (messageParams == null) return;
-
-        var channel = await _client.GetChannelAsync(messageParams.ChannelId);
-        if (channel is not IMessageChannel textChannel) return;
-
-        await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
-
     }
 
     private static MessageParams? GetMessageParams(GameEvent gameEvent)
@@ -123,6 +90,7 @@ public class Program
 
         MessageParams messageParams = new MessageParams();
         messageParams.ChannelId = config.ChannelId;
+
         if (config.TextFormat is not null)
         {
             messageParams.Text = gameEvent.FormatTemplate(config.TextFormat);
@@ -160,7 +128,7 @@ public class Program
 
         if (messageConfig is null) return null;
 
-        if (gameEvent is ChatMessage chatMessage)
+        if (gameEvent is ChatMessageEvent chatMessage)
             return messageConfig.ChatMessageConfig;
 
         if (gameEvent is BanEvent banEvent) return messageConfig.BanMessageConfig;
@@ -173,38 +141,9 @@ public class Program
         return null;
     }
 
-    public static GameEvent? ParseLog(string line)
+    private static Task Ready()
     {
-        string[] sections = line.Split(' ');
-
-        DateTime dateTime = DateTime.ParseExact(sections.ElementAt(0)!, "[yyyy.MM.dd-HH.mm.ss]", CultureInfo.InvariantCulture);
-
-        if (sections.ElementAt(1) == "[CHAT]")
-        {
-            string player = sections.ElementAt(2).TrimEnd(':');
-            string message = string.Join(" ", sections.Skip(3)).TrimEnd('\n');
-            return new ChatMessage(dateTime, player, message);
-        }
-
-        if (sections.ElementAt(1) == "Player"
-            && sections.ElementAt(2) == "Login:")
-        {
-            return new SessionEvent(dateTime, sections.ElementAt(3), true);
-        }
-
-
-        if (sections.ElementAt(1) == "Player"
-            && sections.ElementAt(2) == "Logout:")
-        {
-            return new SessionEvent(dateTime, sections.ElementAt(3), false);
-        }
-
-        if (sections.ElementAt(1) == "[ADMIN]")
-        {
-            return new BanEvent(dateTime, sections.ElementAt(4), sections.ElementAt(2));
-        }
-
-        return null;
+        return Task.CompletedTask;
     }
 
     private static Task Log(LogMessage msg)
@@ -212,76 +151,6 @@ public class Program
         Console.WriteLine(msg.ToString());
         return Task.CompletedTask;
     }
-
-    private static async IAsyncEnumerable<string> ReadLinesAsync()
-    {
-        var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-        while (await timer.WaitForNextTickAsync())
-        {
-            if (_file is null) continue;
-
-            FileStream? stream = null;
-            StreamReader? reader = null;
-
-            try
-            {
-                stream = _file.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                reader = new StreamReader(stream);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                continue;
-            }
-
-            if (reader is null) continue;
-
-            using (stream)
-            using (reader)
-            {
-                //if the file size has not changed, idle
-                if (reader.BaseStream.Length == _lastMaxOffset)
-                    continue;
-
-                //seek to the last max offset
-                reader.BaseStream.Seek(_lastMaxOffset, SeekOrigin.Begin);
-
-                //read out of the file until the EOF
-                string? line;
-                while ((line = reader.ReadLine()) != null)
-                {
-                    yield return line.TrimEnd('\n');
-                }
-
-                //update the last max offset
-                _lastMaxOffset = reader.BaseStream.Position;
-            }
-        }
-    }
-
-    private static FileInfo? getLastLogFile(string path)
-    {
-        DirectoryInfo d = new DirectoryInfo(path); //Assuming Test is your Folder
-
-        FileInfo[] Files = d.GetFiles("*.log"); //Getting Text files
-
-        Files.OrderBy(file => file.LastWriteTime);
-
-        return Files.Last();
-    }
-
-    private static void OnCreated(object sender, FileSystemEventArgs e)
-    {
-        ReadFile(e.FullPath);
-    }
-
-    private static void ReadFile(string path)
-    {
-        _file = new FileInfo(path);
-        _lastMaxOffset = _file.Length;
-        Console.WriteLine($"Reading: {_file.FullName}");
-    }
-
 }
 
 internal class MessageParams
@@ -289,46 +158,4 @@ internal class MessageParams
     internal ulong ChannelId;
     internal string? Text;
     internal Embed? Embed;
-}
-
-public abstract class GameEvent
-{
-    protected GameEvent(DateTime dateTime, string player)
-    {
-        this.TimeStamp = dateTime;
-        this.Player = player;
-    }
-    public DateTime TimeStamp { get; set; }
-    public string Player { get; set; }
-
-    public string FormatTemplate(string template)
-    {
-        return Template.Parse(template).Render(this);
-    }
-}
-public class ChatMessage : GameEvent
-{
-    public ChatMessage(DateTime dateTime, string player, string Message) : base(dateTime, player)
-    {
-        this.Message = Message;
-    }
-    public string Message { get; set; }
-}
-
-public class SessionEvent : GameEvent
-{
-    public SessionEvent(DateTime dateTime, string player, bool Login) : base(dateTime, player)
-    {
-        this.Login = Login;
-    }
-    public bool Login { get; set; }
-}
-public class BanEvent : GameEvent
-{
-    public BanEvent(DateTime dateTime, string player, string admin) : base(dateTime, player)
-    {
-        this.Admin = admin;
-    }
-
-    public string Admin { get; set; }
 }

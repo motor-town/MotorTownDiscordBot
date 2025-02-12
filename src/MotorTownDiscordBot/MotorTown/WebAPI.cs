@@ -1,6 +1,6 @@
 ﻿using System.Net.Http.Json;
 
-namespace MotorTown
+namespace MotorTownDiscordBot.MotorTown
 {
     class WebAPI
     {
