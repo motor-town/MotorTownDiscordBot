@@ -15,7 +15,6 @@ public class Program
         try
         {
             _client.Log += Log;
-            _client.Ready += Ready;
 
             await _client.LoginAsync(TokenType.Bot, _config.Token);
             await _client.StartAsync();
@@ -23,7 +22,8 @@ public class Program
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            Console.WriteLine($"Failed start: {e.Message}");
+            Debug.WriteLine(e);
             Console.WriteLine("Press any key to exit");
             Console.ReadLine();
         }
@@ -36,7 +36,15 @@ public class Program
         UpdatePresence();
         await foreach (var gameEvent in _motorTown.ReadAsync())
         {
-            SendEvent(gameEvent);
+            try
+            {
+                SendEvent(gameEvent);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to send event: {e.Message}");
+                Debug.WriteLine(e);
+            }
         };
     }
 
@@ -56,8 +64,8 @@ public class Program
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Failed to update presence");
-                    Console.WriteLine(e);
+                    Console.WriteLine($"Failed to update presence: {e.Message}");
+                    Debug.WriteLine(e);
                 }
             }
         }
@@ -65,21 +73,13 @@ public class Program
 
     private static async void SendEvent(GameEvent gameEvent)
     {
-        try
-        {
-            var messageParams = GetMessageParams(gameEvent);
-            Debug.WriteLine(messageParams);
-            if (messageParams == null) return;
+        var messageParams = GetMessageParams(gameEvent);
+        if (messageParams == null) return;
 
-            var channel = await _client.GetChannelAsync(messageParams.ChannelId);
-            if (channel is not IMessageChannel textChannel) return;
+        var channel = await _client.GetChannelAsync(messageParams.ChannelId);
+        if (channel is not IMessageChannel textChannel) return;
 
-            await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Failed to send event: {e.Message}");
-        }
+        await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
     }
 
     private static MessageParams? GetMessageParams(GameEvent gameEvent)
@@ -141,14 +141,12 @@ public class Program
         return null;
     }
 
-    private static Task Ready()
-    {
-        return Task.CompletedTask;
-    }
-
     private static Task Log(LogMessage msg)
     {
-        Console.WriteLine(msg.ToString());
+
+        Console.WriteLine($"Failed to update presence: {msg.Message}");
+        Debug.WriteLine(msg.ToString());
+
         return Task.CompletedTask;
     }
 }
