@@ -54,4 +54,19 @@ public class AppConfig
 
     [JsonPropertyName("message_settings")]
     public MessagesConfig? MessagesConfig { get; set; }
+
+
+    [JsonPropertyName("admin_mention")]
+    public AdminMentionConfig? AdminMentionConfig { get; set; }
+
+
+}
+
+public class AdminMentionConfig
+{
+    [JsonPropertyName("keyword")]
+    public string Keyword { get; set; }
+
+    [JsonPropertyName("discord_id")]
+    public string DiscordID { get; set; }
 }

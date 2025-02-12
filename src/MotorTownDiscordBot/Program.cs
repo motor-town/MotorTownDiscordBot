@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Discord;
 using Discord.WebSocket;
 using MotorTownDiscordBot.MotorTown;
@@ -84,19 +85,26 @@ public class Program
 
     private static MessageParams? GetMessageParams(GameEvent gameEvent)
     {
-        MessageConfig? config = GetConfigByGameEvent(gameEvent);
+        MessageConfig? messageConfig = GetConfigByGameEvent(gameEvent);
 
-        if (config is null) return null;
+        if (messageConfig is null) return null;
 
         MessageParams messageParams = new MessageParams();
-        messageParams.ChannelId = config.ChannelId;
+        messageParams.ChannelId = messageConfig.ChannelId;
 
-        if (config.TextFormat is not null)
+        if (messageConfig.TextFormat is not null)
         {
-            messageParams.Text = gameEvent.FormatTemplate(config.TextFormat);
+            var text = gameEvent.FormatTemplate(messageConfig.TextFormat);
+            var mentionConfig = _config.AdminMentionConfig;
+            if (mentionConfig?.Keyword != null && mentionConfig?.DiscordID != null)
+            {
+                text = Regex.Replace(text, mentionConfig.Keyword, mentionConfig.DiscordID, RegexOptions.IgnoreCase);
+            }
+
+            messageParams.Text = text;
         }
 
-        var embedConfig = config.EmbedConfig;
+        var embedConfig = messageConfig.EmbedConfig;
         if (embedConfig is not null)
         {
             EmbedBuilder embedBuilder = new EmbedBuilder();
@@ -144,7 +152,7 @@ public class Program
     private static Task Log(LogMessage msg)
     {
 
-        Console.WriteLine($"Failed to update presence: {msg.Message}");
+        Console.WriteLine($"Discord: {msg.Message}");
         Debug.WriteLine(msg.ToString());
 
         return Task.CompletedTask;
