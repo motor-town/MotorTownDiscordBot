@@ -2,7 +2,7 @@
 
 namespace MotorTownDiscordBot.MotorTown
 {
-    class WebAPI
+    public class WebAPI
     {
         private int _port;
         private string? _password;

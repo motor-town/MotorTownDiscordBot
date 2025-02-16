@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Discord;
 using Discord.WebSocket;
+using MotorTownDiscordBot;
 using MotorTownDiscordBot.MotorTown;
 
 public class Program
@@ -16,9 +17,11 @@ public class Program
         try
         {
             _client.Log += Log;
+            _client.Ready += Ready;
 
             await _client.LoginAsync(TokenType.Bot, _config.Token);
             await _client.StartAsync();
+
             await Run();
         }
         catch (Exception e)
@@ -29,6 +32,16 @@ public class Program
             Console.ReadLine();
         }
 
+    }
+
+    private static async Task Ready()
+    {
+        if (_motorTown.WebAPI != null)
+        {
+            var botInteractions = new BotInteraction(_client, _motorTown.WebAPI);
+            await botInteractions.RegisterCommands();
+            Console.WriteLine("Bot commands registered");
+        }
     }
 
     private static async Task Run()
