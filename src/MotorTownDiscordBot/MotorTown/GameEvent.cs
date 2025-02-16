@@ -37,14 +37,15 @@ public abstract class GameEvent
         if (sections.ElementAt(1) == "Player"
             && sections.ElementAt(2) == "Login:")
         {
-            return new SessionEvent(line, dateTime, sections.ElementAt(3), true);
+            var playerId = sections.Last().Trim('(', ')');
+            return new SessionEvent(line, dateTime, sections.ElementAt(3), playerId, true);
         }
 
 
         if (sections.ElementAt(1) == "Player"
             && sections.ElementAt(2) == "Logout:")
         {
-            return new SessionEvent(line, dateTime, sections.ElementAt(3), false);
+            return new SessionEvent(line, dateTime, sections.ElementAt(3), "", false);
         }
 
         if (sections.ElementAt(1) == "[ADMIN]")
@@ -59,18 +60,22 @@ public class ChatMessageEvent : GameEvent
 {
     public ChatMessageEvent(string text, DateTime dateTime, string player, string Message) : base(text, dateTime, player)
     {
-        this.Message = Message;
+        Message = Message;
     }
+
     public readonly string Message;
 }
 
 public class SessionEvent : GameEvent
 {
-    public SessionEvent(string text, DateTime dateTime, string player, bool Login) : base(text, dateTime, player)
+    public SessionEvent(string text, DateTime dateTime, string player, string playerId, bool login) : base(text, dateTime, player)
     {
-        this.Login = Login;
+        Login = login;
+        PlayerId = playerId;
     }
     public readonly bool Login;
+
+    public string? PlayerId { get; set; }
 }
 public class BanEvent : GameEvent
 {

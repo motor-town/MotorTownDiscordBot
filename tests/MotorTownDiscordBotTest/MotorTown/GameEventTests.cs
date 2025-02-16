@@ -25,6 +25,7 @@ namespace MotorTownDiscordBotTest.MotorTown
             Assert.IsType<SessionEvent>(sessionEvent);
             Assert.Equal(new DateTime(2025, 2, 6, 17, 12, 35), sessionEvent.TimeStamp);
             Assert.Equal("McRay", sessionEvent.Player);
+            Assert.Equal("76561197997411952", sessionEvent.PlayerId);
             Assert.True(sessionEvent.Login);
         }
 
