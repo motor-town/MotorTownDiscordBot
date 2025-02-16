@@ -64,6 +64,14 @@ namespace MotorTownDiscordBot.MotorTown
             return result.succeeded;
         }
 
+        public async Task<bool> SendMessage(string message)
+        {
+            HttpResponseMessage response = await _client.PostAsync($"/chat?&message={message}", null);
+            var result = await GetResult<object>(response);
+
+            return result.succeeded;
+        }
+
         private async Task<Response<T>> GetResult<T>(HttpResponseMessage response)
         {
             response.EnsureSuccessStatusCode();

@@ -47,6 +47,11 @@ public class BotInteraction
         banListCommand.WithName("ban-list");
         banListCommand.WithDescription("List of banned players on the server");
 
+        var announceCommand = new SlashCommandBuilder();
+        announceCommand.WithName("announce");
+        announceCommand.WithDescription("Send announcement message to server chat");
+        announceCommand.AddOption("message", ApplicationCommandOptionType.String, "Message to the in game chat");
+
         try
         {
             // With global commands we don't need the guild.
@@ -55,7 +60,8 @@ public class BotInteraction
                 banCommand.Build(),
                 playerListCommand.Build(),
                 banListCommand.Build(),
-                unbanCommand.Build()
+                unbanCommand.Build(),
+                announceCommand.Build()
              ]);
             // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
             // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
@@ -107,12 +113,25 @@ public class BotInteraction
             case "ban-list":
                 await HandleBanListCommand(command);
                 break;
-
+            case "announce":
+                await HandleAnnounceCommand(command);
+                break;
         }
 
         return;
     }
 
+    private async Task HandleAnnounceCommand(SocketSlashCommand command)
+    {
+        var message = command.Data.Options.FirstOrDefault(o => o.Name == "message")?.Value?.ToString();
+        if (message == null || message.Length == 0)
+        {
+            return;
+        }
+
+        await _webAPI.SendMessage(message);
+        await command.RespondAsync("Message sent");
+    }
 
     private async Task HandleBanListCommand(SocketSlashCommand command)
     {
