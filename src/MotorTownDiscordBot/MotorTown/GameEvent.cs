@@ -30,7 +30,7 @@ public abstract class GameEvent
         if (sections.ElementAt(1) == "[CHAT]")
         {
             string player = sections.ElementAt(2).TrimEnd(':');
-            string message = string.Join(" ", sections.Skip(3)).TrimEnd('\n');
+            string message = String.Join(" ", sections.Skip(3)).TrimEnd('\n');
             return new ChatMessageEvent(line, dateTime, player, message);
         }
 
@@ -58,9 +58,9 @@ public abstract class GameEvent
 }
 public class ChatMessageEvent : GameEvent
 {
-    public ChatMessageEvent(string text, DateTime dateTime, string player, string Message) : base(text, dateTime, player)
+    public ChatMessageEvent(string text, DateTime dateTime, string player, string message) : base(text, dateTime, player)
     {
-        Message = Message;
+        Message = message;
     }
 
     public readonly string Message;
