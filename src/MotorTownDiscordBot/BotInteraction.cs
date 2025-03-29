@@ -2,22 +2,30 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
 using MotorTownDiscordBot.MotorTown;
+using Newtonsoft.Json.Linq;
 
 public class BotInteraction
 {
     private readonly DiscordSocketClient _client;
     private readonly WebAPI _webAPI;
+    private readonly ulong _guildId;
 
     public BotInteraction(DiscordSocketClient client, WebAPI webAPI)
     {
         _client = client;
         _webAPI = webAPI;
+
+        // Guild-ID aus der Konfigurationsdatei laden
+        var config = JObject.Parse(File.ReadAllText("config.json"));
+        _guildId = ulong.Parse(config["guildId"]?.ToString() ?? throw new Exception("Guild ID not found in config"));
+        
         _client.SlashCommandExecuted += SlashCommandHandler;
     }
 
@@ -36,7 +44,8 @@ public class BotInteraction
                 CreateCommand("online-players", "Show all online players in an embed")
             };
 
-            await _client.BulkOverwriteGlobalApplicationCommandsAsync(commands.Select(cmd => cmd.Build()).ToArray());
+            // Guild-Slash-Commands registrieren
+            await _client.BulkOverwriteGuildApplicationCommandsAsync(_guildId, commands.Select(cmd => cmd.Build()).ToArray());
         }
         catch (HttpException exception)
         {

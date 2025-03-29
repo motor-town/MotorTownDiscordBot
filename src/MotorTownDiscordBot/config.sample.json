@@ -1,6 +1,7 @@
 {
     "path": "C:\\SteamLibrary\\steamapps\\common\\Motor Town Behind The Wheel - Dedicated Server",
     "discord_token": "token",
+    "guildId": "123456789012345678",
     "message_settings": {
         "chat": {
             "channel_id": 100000000000000000,
