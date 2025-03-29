@@ -17,8 +17,20 @@ public class Program
         try
         {
             _client.Log += Log;
-            _client.Ready += Ready;
 
+            // Slash-Commands vor dem Start des Bots registrieren
+            if (_motorTown.WebAPI != null)
+            {
+                var botInteractions = new BotInteraction(_client, _motorTown.WebAPI);
+                await botInteractions.RegisterCommands(); // Slash-Commands registrieren
+                Console.WriteLine("Slash commands registered successfully.");
+            }
+            else
+            {
+                Console.WriteLine("WebAPI is not available. Commands were not registered.");
+            }
+
+            // Bot starten
             await _client.LoginAsync(TokenType.Bot, _config.Token);
             await _client.StartAsync();
 
@@ -27,16 +39,6 @@ public class Program
         catch (Exception e)
         {
             LogError("Failed to start bot", e);
-        }
-    }
-
-    private static async Task Ready()
-    {
-        if (_motorTown.WebAPI != null)
-        {
-            var botInteractions = new BotInteraction(_client, _motorTown.WebAPI);
-            await botInteractions.RegisterCommands();
-            Console.WriteLine("Bot commands registered");
         }
     }
 
