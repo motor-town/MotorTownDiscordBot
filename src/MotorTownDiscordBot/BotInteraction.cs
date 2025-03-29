@@ -25,7 +25,7 @@ public class BotInteraction
         // Guild-ID aus der Konfigurationsdatei laden
         var config = JObject.Parse(File.ReadAllText("config.json"));
         _guildId = ulong.Parse(config["guildId"]?.ToString() ?? throw new Exception("Guild ID not found in config"));
-        
+
         _client.SlashCommandExecuted += SlashCommandHandler;
     }
 
@@ -35,13 +35,13 @@ public class BotInteraction
         {
             var commands = new[]
             {
-                CreateCommand("kick", "Kick player on the server", "player-id"),
-                CreateCommand("ban", "Ban player on the server", "player-id"),
-                CreateCommand("unban", "Unban player on the server", "player-id"),
-                CreateCommand("player-list", "List of players on the server"),
-                CreateCommand("ban-list", "List of banned players on the server"),
-                CreateCommand("announce", "Send announcement message to server chat", "message"),
-                CreateCommand("online-players", "Show all online players in an embed")
+                CreateCommand("kick", "Kick a player from the server", "playerid"),
+                CreateCommand("ban", "Ban a player from the server", "playerid"),
+                CreateCommand("unban", "Unban a player from the server", "playerid"),
+                CreateCommand("playerlist", "Get a list of players on the server"),
+                CreateCommand("banlist", "Get a list of banned players"),
+                CreateCommand("announce", "Send an announcement to the server", "message"),
+                CreateCommand("onlineplayers", "Show all online players in an embed")
             };
 
             // Guild-Slash-Commands registrieren
@@ -95,16 +95,16 @@ public class BotInteraction
             case "unban":
                 await HandleUnbanCommand(command);
                 break;
-            case "player-list":
+            case "playerlist":
                 await HandlePlayerListCommand(command);
                 break;
-            case "ban-list":
+            case "banlist":
                 await HandleBanListCommand(command);
                 break;
             case "announce":
                 await HandleAnnounceCommand(command);
                 break;
-            case "online-players":
+            case "onlineplayers":
                 await HandleOnlinePlayersCommand(command);
                 break;
             default:
@@ -154,7 +154,7 @@ public class BotInteraction
 
     private async Task HandleKickCommand(SocketSlashCommand command)
     {
-        var playerId = GetCommandOptionValue(command, "player-id");
+        var playerId = GetCommandOptionValue(command, "playerid");
         if (string.IsNullOrEmpty(playerId))
         {
             await command.RespondAsync("Player ID is required");
@@ -167,7 +167,7 @@ public class BotInteraction
 
     private async Task HandleUnbanCommand(SocketSlashCommand command)
     {
-        var playerId = GetCommandOptionValue(command, "player-id");
+        var playerId = GetCommandOptionValue(command, "playerid");
         if (string.IsNullOrEmpty(playerId))
         {
             await command.RespondAsync("Player ID is required");
@@ -180,7 +180,7 @@ public class BotInteraction
 
     private async Task HandleBanCommand(SocketSlashCommand command)
     {
-        var playerId = GetCommandOptionValue(command, "player-id");
+        var playerId = GetCommandOptionValue(command, "playerid");
         if (string.IsNullOrEmpty(playerId))
         {
             await command.RespondAsync("Player ID is required");

@@ -8,9 +8,9 @@ using MotorTownDiscordBot.MotorTown;
 
 public class Program
 {
-    private static DiscordSocketClient _client = new DiscordSocketClient();
-    private static AppConfig _config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText("config.json"))!;
-    private static MotorTown _motorTown = new MotorTown(_config.Path);
+    private static readonly DiscordSocketClient _client = new DiscordSocketClient();
+    private static readonly AppConfig _config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText("config.json"))!;
+    private static readonly MotorTown _motorTown = new MotorTown(_config.Path);
 
     public static async Task Main(string[] args)
     {
@@ -26,12 +26,8 @@ public class Program
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed start: {e.Message}");
-            Debug.WriteLine(e);
-            Console.WriteLine("Press any key to exit");
-            Console.ReadLine();
+            LogError("Failed to start bot", e);
         }
-
     }
 
     private static async Task Ready()
@@ -46,129 +42,125 @@ public class Program
 
     private static async Task Run()
     {
-
         UpdatePresence();
+
         await foreach (var gameEvent in _motorTown.ReadAsync())
         {
             try
             {
-                SendEvent(gameEvent);
+                await SendEvent(gameEvent);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to send event: {e.Message}");
-                Debug.WriteLine(e);
-            }
-        };
-    }
-
-
-    private static async void UpdatePresence()
-    {
-
-        if (_motorTown.WebAPI != null)
-        {
-            var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
-            while (await timer.WaitForNextTickAsync())
-            {
-                try
-                {
-                    int playerCount = await _motorTown.WebAPI.GetPlayerCount();
-                    await _client.SetActivityAsync(new Game("with " + playerCount + " other players"));
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Failed to update presence: {e.Message}");
-                    Debug.WriteLine(e);
-                }
+                LogError("Failed to send event", e);
             }
         }
     }
 
-    private static async void SendEvent(GameEvent gameEvent)
+    private static async void UpdatePresence()
+    {
+        if (_motorTown.WebAPI == null) return;
+
+        var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        while (await timer.WaitForNextTickAsync())
+        {
+            try
+            {
+                int playerCount = await _motorTown.WebAPI.GetPlayerCount();
+                await _client.SetActivityAsync(new Game($"with {playerCount} other players"));
+            }
+            catch (Exception e)
+            {
+                LogError("Failed to update presence", e);
+            }
+        }
+    }
+
+    private static async Task SendEvent(GameEvent gameEvent)
     {
         var messageParams = GetMessageParams(gameEvent);
         if (messageParams == null) return;
 
-        var channel = await _client.GetChannelAsync(messageParams.ChannelId);
-        if (channel is not IMessageChannel textChannel) return;
+        if (await _client.GetChannelAsync(messageParams.ChannelId) is not IMessageChannel textChannel) return;
 
         await textChannel.SendMessageAsync(messageParams.Text, false, messageParams.Embed);
     }
 
     private static MessageParams? GetMessageParams(GameEvent gameEvent)
     {
-        MessageConfig? messageConfig = GetConfigByGameEvent(gameEvent);
+        var messageConfig = GetConfigByGameEvent(gameEvent);
+        if (messageConfig == null) return null;
 
-        if (messageConfig is null) return null;
-
-        MessageParams messageParams = new MessageParams();
-        messageParams.ChannelId = messageConfig.ChannelId;
-
-        if (messageConfig.TextFormat is not null)
+        var messageParams = new MessageParams
         {
-            var text = gameEvent.FormatTemplate(messageConfig.TextFormat);
-            var mentionConfig = _config.AdminMentionConfig;
-            if (mentionConfig?.Keyword != null && mentionConfig?.DiscordID != null)
-            {
-                text = Regex.Replace(text, mentionConfig.Keyword, mentionConfig.DiscordID, RegexOptions.IgnoreCase);
-            }
-
-            messageParams.Text = text;
-        }
-
-        var embedConfig = messageConfig.EmbedConfig;
-        if (embedConfig is not null)
-        {
-            EmbedBuilder embedBuilder = new EmbedBuilder();
-            if (embedConfig.Color != null)
-                embedBuilder.WithColor(Color.Parse(embedConfig.Color));
-
-            string? titleFormat = embedConfig.TitleFormat;
-            if (titleFormat != null)
-                embedBuilder.WithTitle(gameEvent.FormatTemplate(titleFormat));
-
-
-            string? descriptionFormat = embedConfig.DescriptionFormat;
-            if (descriptionFormat != null)
-                embedBuilder.WithDescription(gameEvent.FormatTemplate(descriptionFormat));
-
-
-            string? thumbnailUrl = embedConfig.ThumbnailURL;
-            if (thumbnailUrl != null) embedBuilder.WithThumbnailUrl(thumbnailUrl);
-
-            messageParams.Embed = embedBuilder.Build();
-        }
+            ChannelId = messageConfig.ChannelId,
+            Text = FormatMessageText(gameEvent, messageConfig.TextFormat),
+            Embed = CreateEmbed(gameEvent, messageConfig.EmbedConfig)
+        };
 
         return messageParams;
     }
 
-    private static MessageConfig? GetConfigByGameEvent(GameEvent gameEvent)
+    private static string? FormatMessageText(GameEvent gameEvent, string? textFormat)
     {
-        var messageConfig = _config.MessagesConfig;
+        if (textFormat == null) return null;
 
-        if (messageConfig is null) return null;
+        var text = gameEvent.FormatTemplate(textFormat);
+        var mentionConfig = _config.AdminMentionConfig;
 
-        if (gameEvent is ChatMessageEvent chatMessage)
-            return messageConfig.ChatMessageConfig;
-
-        if (gameEvent is BanEvent banEvent) return messageConfig.BanMessageConfig;
-
-        if (gameEvent is SessionEvent sessionEvent)
+        if (mentionConfig?.Keyword != null && mentionConfig?.DiscordID != null)
         {
-            return sessionEvent.Login ? messageConfig.LoginMessageConfig : messageConfig.LogoutMessageConfig;
+            text = Regex.Replace(text, mentionConfig.Keyword, mentionConfig.DiscordID, RegexOptions.IgnoreCase);
         }
 
-        return null;
+        return text;
+    }
+
+    private static Embed? CreateEmbed(GameEvent gameEvent, EmbedConfig? embedConfig)
+    {
+        if (embedConfig == null) return null;
+
+        var embedBuilder = new EmbedBuilder();
+
+        if (embedConfig.Color != null)
+            embedBuilder.WithColor(Color.Parse(embedConfig.Color));
+
+        if (embedConfig.TitleFormat != null)
+            embedBuilder.WithTitle(gameEvent.FormatTemplate(embedConfig.TitleFormat));
+
+        if (embedConfig.DescriptionFormat != null)
+            embedBuilder.WithDescription(gameEvent.FormatTemplate(embedConfig.DescriptionFormat));
+
+        if (embedConfig.ThumbnailURL != null)
+            embedBuilder.WithThumbnailUrl(embedConfig.ThumbnailURL);
+
+        return embedBuilder.Build();
+    }
+
+    private static MessageConfig? GetConfigByGameEvent(GameEvent gameEvent)
+    {
+        return gameEvent switch
+        {
+            ChatMessageEvent => _config.MessagesConfig?.ChatMessageConfig,
+            BanEvent => _config.MessagesConfig?.BanMessageConfig,
+            SessionEvent sessionEvent => sessionEvent.Login
+                ? _config.MessagesConfig?.LoginMessageConfig
+                : _config.MessagesConfig?.LogoutMessageConfig,
+            _ => null
+        };
     }
 
     private static Task Log(LogMessage msg)
     {
-
         Console.WriteLine($"Discord: {msg.Message}");
         Debug.WriteLine(msg.ToString());
-
         return Task.CompletedTask;
+    }
+
+    private static void LogError(string message, Exception e)
+    {
+        Console.WriteLine($"{message}: {e.Message}");
+        Debug.WriteLine(e);
     }
 }
 
