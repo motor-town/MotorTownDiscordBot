@@ -32,7 +32,8 @@ public class BotInteraction
                 CreateCommand("unban", "Unban player on the server", "player-id"),
                 CreateCommand("player-list", "List of players on the server"),
                 CreateCommand("ban-list", "List of banned players on the server"),
-                CreateCommand("announce", "Send announcement message to server chat", "message")
+                CreateCommand("announce", "Send announcement message to server chat", "message"),
+                CreateCommand("online-players", "Show all online players in an embed")
             };
 
             await _client.BulkOverwriteGlobalApplicationCommandsAsync(commands.Select(cmd => cmd.Build()).ToArray());
@@ -93,6 +94,9 @@ public class BotInteraction
                 break;
             case "announce":
                 await HandleAnnounceCommand(command);
+                break;
+            case "online-players":
+                await HandleOnlinePlayersCommand(command);
                 break;
             default:
                 await command.RespondAsync("Unknown command");
@@ -176,6 +180,23 @@ public class BotInteraction
 
         await _webAPI.PlayerBan(playerId);
         await command.RespondAsync($"Player ({playerId}) banned");
+    }
+
+    private async Task HandleOnlinePlayersCommand(SocketSlashCommand command)
+    {
+        var players = await _webAPI.GetPlayerList();
+        if (players == null || players.Length == 0)
+        {
+            await command.RespondAsync("No players are currently online.");
+            return;
+        }
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("Online Players")
+            .WithColor(Color.Green)
+            .WithDescription(string.Join('\n', players.Select(p => $"{p.name} ({p.unique_id})")));
+
+        await command.RespondAsync(embed: embedBuilder.Build());
     }
 
     private static string GetCommandOptionValue(SocketSlashCommand command, string optionName)
