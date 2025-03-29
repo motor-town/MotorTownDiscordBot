@@ -45,7 +45,8 @@ public class BotInteraction
             };
 
             // Guild-Slash-Commands registrieren
-            await _client.BulkOverwriteGuildApplicationCommandsAsync(_guildId, commands.Select(cmd => cmd.Build()).ToArray());
+            await _client.Rest.BulkOverwriteGuildApplicationCommandsAsync(_guildId, commands.Select(cmd => cmd.Build()).ToArray());
+            Console.WriteLine("Slash commands registered successfully.");
         }
         catch (HttpException exception)
         {
@@ -69,17 +70,15 @@ public class BotInteraction
 
     private async Task SlashCommandHandler(SocketSlashCommand command)
     {
-        await Task.Run(async () =>
+        try
         {
-            try
-            {
-                await HandleInteraction(command).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                LogException(e);
-            }
-        });
+            await HandleInteraction(command);
+        }
+        catch (Exception e)
+        {
+            LogException(e);
+            await command.RespondAsync("An error occurred while processing the command.");
+        }
     }
 
     public async Task HandleInteraction(SocketSlashCommand command)
@@ -210,12 +209,12 @@ public class BotInteraction
 
     private static string GetCommandOptionValue(SocketSlashCommand command, string optionName)
     {
-        return command.Data.Options.FirstOrDefault(o => o.Name == optionName)?.Value?.ToString();
+        return command.Data.Options?.FirstOrDefault(o => o.Name == optionName)?.Value?.ToString();
     }
 
     private static void LogException(Exception exception)
     {
         Debug.WriteLine(exception);
-        Console.WriteLine(exception.Message);
+        Console.WriteLine($"Error: {exception.Message}");
     }
 }
