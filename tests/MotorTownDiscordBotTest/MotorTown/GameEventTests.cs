@@ -7,12 +7,13 @@ namespace MotorTownDiscordBotTest.MotorTown
         [Fact()]
         public void ParseChatLogTest()
         {
-            var chatMessage = (ChatMessageEvent?)GameEvent.ParseLog("[2025.02.06-19.12.49] [CHAT] McRay: biraz garip geliyor\n");
+            var chatMessage = (ChatMessageEvent?)GameEvent.ParseLog("[2025.02.06-19.12.49] [CHAT] McRay (76561197997411952): biraz garip geliyor\n");
 
             Assert.NotNull(chatMessage);
             Assert.IsType<ChatMessageEvent>(chatMessage);
             Assert.Equal(new DateTime(2025, 2, 6, 19, 12, 49), chatMessage.TimeStamp);
             Assert.Equal("McRay", chatMessage.Player);
+            Assert.Equal("76561197997411952", chatMessage.PlayerId);
             Assert.Equal("biraz garip geliyor", chatMessage.Message);
         }
 
@@ -56,7 +57,7 @@ namespace MotorTownDiscordBotTest.MotorTown
         [Fact()]
         public void ParseSrtingFormatTest()
         {
-            ChatMessageEvent chatMessage = new ChatMessageEvent("", DateTime.Now, "Eric", "Hello World!");
+            ChatMessageEvent chatMessage = new ChatMessageEvent("", DateTime.Now, "Eric", "76561197997411952", "Hello World!");
             string template = "{{player}} said '{{message}}'";
             string value = chatMessage.FormatTemplate(template);
 
